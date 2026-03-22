@@ -12,6 +12,10 @@ local J = require 'java'
 
 local Activity = J.android.app.Activity
 local LinearLayout = J.android.widget.LinearLayout
+local View = J.android.view.View
+local ViewGroup = J.android.view.ViewGroup
+local Button = J.android.widget.Button
+local TypedValue = J.android.util.TypedValue
 
 
 local callbacks = {}
@@ -120,7 +124,7 @@ https://buymeacoffee.com/thenumbernine
 end
 
 local function refreshFontSize()
-	textView:setTextSize(J.android.util.TypedValue.COMPLEX_UNIT_SP, fontSize)
+	textView:setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSize)
 end
 
 
@@ -158,22 +162,107 @@ callbacks.onCreate = function(activity_, savedInstanceState, ...)
 	-- save here
 	activity = activity_
 
-	local ViewGroup = J.android.view.ViewGroup
-
-	readerView = J.android.widget.ScrollView(activity)
-	readerView:setLayoutParams(ViewGroup.LayoutParams(
+	local RelativeLayout = J.android.widget.RelativeLayout
+	readerView = RelativeLayout(activity)
+	readerView:setLayoutParams(RelativeLayout.LayoutParams(
 		ViewGroup.LayoutParams.MATCH_PARENT,
 		ViewGroup.LayoutParams.MATCH_PARENT
 	))
 
-	textView = J.android.widget.TextView(activity)
-	textView:setLayoutParams(ViewGroup.LayoutParams(
-		ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
-	))
-	textView:setPadding(16, 16, 16, 16)
-	refreshFontSize()
-	textView:setTextIsSelectable(true)
-	readerView:addView(textView)
+	local bottomMenu
+	do
+		bottomMenu = LinearLayout(activity)
+        bottomMenu:setId(View:generateViewId())
+		bottomMenu:setOrientation(LinearLayout.HORIZONTAL)
+		local params = RelativeLayout.LayoutParams(
+			RelativeLayout.LayoutParams.MATCH_PARENT,
+			RelativeLayout.LayoutParams.WRAP_CONTENT
+		)
+		params:addRule(RelativeLayout.ALIGN_PARENT_BOTTOM)
+		bottomMenu:setLayoutParams(params)
+
+		local function changeChapter(delta)
+			local i = allChapters:find(currentChapter)
+			if i then	-- won't find if we're not viewing a chapter (mabye grey out or hide icons?)
+				local newChapter = allChapters[i+delta]
+				if newChapter then
+					showAndAddHistory{
+						currentChapter = newChapter,
+						currentBook = newChapter.book,
+						showLevel = 3,
+						show = show,
+					}
+				end
+			end
+		end
+
+		local uiFontSize = 20
+
+		local buttonPrev = Button(activity)
+		buttonPrev:setText'<'
+		buttonPrev:setTextSize(TypedValue.COMPLEX_UNIT_SP, uiFontSize)
+		buttonPrev:setLayoutParams(LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1))
+		buttonPrev:setOnClickListener(View.OnClickListener(function()
+			changeChapter(-1)
+		end))
+		bottomMenu:addView(buttonPrev)
+
+		local buttonFontMinus = Button(activity)
+		buttonFontMinus:setText'-'
+		buttonFontMinus:setTextSize(TypedValue.COMPLEX_UNIT_SP, uiFontSize)
+		buttonFontMinus:setLayoutParams(LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1))
+		buttonFontMinus:setOnClickListener(View.OnClickListener(function()
+			fontSize = math.max(4, fontSize - 2)
+			refreshFontSize()
+		end))
+		bottomMenu:addView(buttonFontMinus)
+
+		local buttonFontPlus = Button(activity)
+		buttonFontPlus:setText'+'
+		buttonFontPlus:setTextSize(TypedValue.COMPLEX_UNIT_SP, uiFontSize)
+		buttonFontPlus:setLayoutParams(LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1))
+		buttonFontPlus:setOnClickListener(View.OnClickListener(function()
+			fontSize = fontSize + 2	-- upper bound?  exponential curve?
+			refreshFontSize()
+		end))
+		bottomMenu:addView(buttonFontPlus)
+		
+		local buttonNext = Button(activity)
+		buttonNext:setText'>'
+		buttonNext:setTextSize(TypedValue.COMPLEX_UNIT_SP, uiFontSize)
+		buttonNext:setLayoutParams(LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1))
+		buttonNext:setOnClickListener(View.OnClickListener(function()
+			changeChapter(1)
+		end))
+		bottomMenu:addView(buttonNext)
+	end
+
+	local textScrollView = J.android.widget.ScrollView(activity)
+	local params = RelativeLayout.LayoutParams(
+		ViewGroup.LayoutParams.MATCH_PARENT, 
+		ViewGroup.LayoutParams.MATCH_PARENT
+	)
+	params:addRule(RelativeLayout.ALIGN_PARENT_TOP)
+	params:addRule(RelativeLayout.ABOVE, bottomMenu:getId())
+	textScrollView:setLayoutParams(params)
+	readerView:addView(textScrollView)
+
+	do
+		textView = J.android.widget.TextView(activity)
+		textView:setLayoutParams(ViewGroup.LayoutParams(
+			ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+		))
+		textView:setPadding(16, 16, 16, 16)
+		refreshFontSize()
+		textView:setTextIsSelectable(true)
+		textScrollView:addView(textView)
+	end
+
+	-- has to be added last? or order doesn't matter because the ALIGN_PARENT_TOP rule?
+	readerView:addView(bottomMenu) 
+
+
+	-- make our view for when we list books or chapters
 
 	listView = J.android.widget.ListView(activity)
 
@@ -245,10 +334,6 @@ callbacks.onCreate = function(activity_, savedInstanceState, ...)
 				isPublic = true,
 				sig = {'android.view.View', 'int', 'android.view.View', 'android.view.ViewGroup'},
 				value = function(this, position, convertView, parent)
-					local View = J.android.view.View
-					local ViewGroup = J.android.view.ViewGroup
-					local Button = J.android.widget.Button
-
 					local layout = LinearLayout(activity)
 					layout:setOrientation(LinearLayout.HORIZONTAL)
 					layout:setWeightSum(numCols)
@@ -269,8 +354,9 @@ callbacks.onCreate = function(activity_, savedInstanceState, ...)
 
 						button:setText(tostring(chapter.no))
 						button:setOnClickListener(View.OnClickListener(function()
-							currentChapter = chapter
 							showAndAddHistory{
+								currentChapter = chapter,
+								currentBook = chapter.book,
 								showLevel = 3,
 								show = show,
 							}
@@ -306,10 +392,6 @@ callbacks.onCreate = function(activity_, savedInstanceState, ...)
 				isPublic = true,
 				sig = {'android.view.View', 'int', 'android.view.View', 'android.view.ViewGroup'},
 				value = function(this, position, convertView, parent)
-					local View = J.android.view.View
-					local ViewGroup = J.android.view.ViewGroup
-					local Button = J.android.widget.Button
-
 					local layout = LinearLayout(activity)
 					layout:setOrientation(LinearLayout.HORIZONTAL)
 
@@ -327,12 +409,14 @@ callbacks.onCreate = function(activity_, savedInstanceState, ...)
 						currentBook = book
 						if #book.chapters == 1 then
 							showAndAddHistory{
+								currentBook = currentBook,
 								currentChapter = currentBook.chapters[1],
 								showLevel = 3,	-- verse-list
 								show = show,
 							}
 						else
 							showAndAddHistory{
+								currentBook = currentBook,
 								showLevel = 2,	-- chapter-list
 								show = show,
 							}
@@ -353,33 +437,11 @@ callbacks.onCreate = function(activity_, savedInstanceState, ...)
 end
 
 local menuOpenBooks = getNextMenu()
-local menuChapterPrev = getNextMenu()
-local menuFontPlus = getNextMenu()
-local menuFontMinus = getNextMenu()
-local menuChapterNext = getNextMenu()
 local menuOpenAbout = getNextMenu()
 
 local prevOnCreateOptionsMenu = callbacks.onCreateOptionsMenu
 callbacks.onCreateOptionsMenu = function(activity, menu, ...)
 	prevOnCreateOptionsMenu(activity, menu, ...)
-	menu:add(0, menuChapterPrev, 0, '<')
-		:setShowAsAction(J.android.view.MenuItem.SHOW_AS_ACTION_ALWAYS)
-	menu:add(0, menuFontPlus, 1, '+')
-		:setShowAsAction(J.android.view.MenuItem.SHOW_AS_ACTION_ALWAYS)
-	menu:add(0, menuFontMinus, 2, '-')
-		:setShowAsAction(J.android.view.MenuItem.SHOW_AS_ACTION_ALWAYS)
-	menu:add(0, menuChapterNext, 3, '>')
-		:setShowAsAction(J.android.view.MenuItem.SHOW_AS_ACTION_ALWAYS)
-
---[[ resize buttons ... might be easier to just use icons ...
-	for i=0,menu:size()-1 do
-		local item = menu:getItem(i)
-		local s = J.android.text.SpannableString(item:getTitle())
-		s:setSpan(J.android.text.style.RelativeSizeSpan(1.2), 0, s:length(), 0)
-		item:setTitle(s)
-	end
---]]
-
 	menu:add(0, menuOpenBooks, 4, 'Books...')
 	menu:add(0, menuOpenAbout, 5, 'About...')
 	return true
@@ -389,33 +451,7 @@ end
 local prevOnOptionsItemSelected = callbacks.onOptionsItemSelected
 callbacks.onOptionsItemSelected = function(activity, item, ...)
 	local itemID = item:getItemId()
-	
-	local function changeChapter(delta)
-		local i = allChapters:find(currentChapter)
-		if i then	-- won't find if we're not viewing a chapter (mabye grey out or hide icons?)
-			local newChapter = allChapters[i+delta]
-			if newChapter then
-				showAndAddHistory{
-					currentChapter = newChapter,
-					currentBook = newChapter.book,
-					showLevel = 3,
-					show = show,
-				}
-			end
-		end
-	end
-
-	if itemID == menuChapterPrev then
-		changeChapter(-1)
-	elseif itemID == menuChapterNext then
-		changeChapter(1)
-	elseif itemID == menuFontPlus then
-		fontSize = fontSize + 2	-- upper bound?  exponential curve?
-		refreshFontSize()
-	elseif itemID == menuFontMinus then
-		fontSize = math.max(4, fontSize - 2)
-		refreshFontSize()
-	elseif itemID == menuOpenBooks then
+	if itemID == menuOpenBooks then
 		-- TODO insert into a history table and then let back go back one history unit
 		showAndAddHistory{
 			showLevel = 1,
