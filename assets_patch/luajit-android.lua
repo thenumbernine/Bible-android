@@ -60,7 +60,7 @@ end
 local BookListViewAdapter
 local listView
 local readerView
-local textView
+local readerTextView
 local fontSize = 20
 
 local books = table()
@@ -77,7 +77,8 @@ local function showVerseList()
 	end
 	activity:setTitle(title)
 
-	textView:setText(
+	activity:setContentView(readerView)	-- has to go before setText
+	readerTextView:setText(
 		currentChapter.lines:mapi(function(line)
 			if line.verseno then
 				return line.verseno..': '..line.text
@@ -86,12 +87,12 @@ local function showVerseList()
 			end
 		end):concat'\n'
 	)
-	activity:setContentView(readerView)
 end
 
 local function showAbout()
 	activity:setTitle'About'
-	textView:setText[[
+	activity:setContentView(readerView)
+	readerTextView:setText[[
 Bible App
 
 Copyright (c) 2026 Christopher E. Moore
@@ -102,7 +103,6 @@ If you like this app, please consider supporting it.
 Donations are greatly appreciated.
 https://buymeacoffee.com/thenumbernine
 ]]
-	activity:setContentView(readerView)
 end
 
 local showIDs = table{
@@ -116,13 +116,13 @@ local showID = showIDs.books
 local function show()
 	if showID == showIDs.books then
 		activity:setTitle'Bible App'
-		listView:setAdapter(BookListViewAdapter())
 		activity:setContentView(listView)
+		listView:setAdapter(BookListViewAdapter())
 	elseif showID == showIDs.chapters then
 		-- assumes currentBook is set
 		activity:setTitle(currentBook.name)
-		listView:setAdapter(ChapterListViewAdapter())
 		activity:setContentView(listView)
+		listView:setAdapter(ChapterListViewAdapter())
 	elseif showID == showIDs.verses then
 		-- assumes currentBook and currentChapter is set
 		showVerseList()
@@ -132,7 +132,7 @@ local function show()
 end
 
 local function refreshFontSize()
-	textView:setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSize)
+	readerTextView:setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSize)
 end
 
 
@@ -239,26 +239,24 @@ callbacks.onCreate = function(activity, savedInstanceState, ...)
 		bottomMenu:addView(buttonNext)
 	end
 
-	local textScrollView = J.android.widget.ScrollView(activity)
+	local readerScrollView = J.android.widget.ScrollView(activity)
 	local params = RelativeLayout.LayoutParams(
 		ViewGroup.LayoutParams.MATCH_PARENT,
 		ViewGroup.LayoutParams.MATCH_PARENT
 	)
 	params:addRule(RelativeLayout.ALIGN_PARENT_TOP)
 	params:addRule(RelativeLayout.ABOVE, bottomMenu:getId())
-	textScrollView:setLayoutParams(params)
-	readerView:addView(textScrollView)
+	readerScrollView:setLayoutParams(params)
+	readerView:addView(readerScrollView)
 
-	do
-		textView = J.android.widget.TextView(activity)
-		textView:setLayoutParams(ViewGroup.LayoutParams(
-			ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
-		))
-		textView:setPadding(16, 16, 16, 16)
-		refreshFontSize()
-		textView:setTextIsSelectable(true)
-		textScrollView:addView(textView)
-	end
+	readerTextView = J.android.widget.TextView(activity)
+	readerTextView:setLayoutParams(ViewGroup.LayoutParams(
+		ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+	))
+	readerTextView:setPadding(16, 16, 16, 16)
+	refreshFontSize()
+	readerTextView:setTextIsSelectable(true)
+	readerScrollView:addView(readerTextView)
 
 	-- has to be added last? or order doesn't matter because the ALIGN_PARENT_TOP rule?
 	readerView:addView(bottomMenu)
@@ -431,21 +429,26 @@ callbacks.onCreate = function(activity, savedInstanceState, ...)
 
 	-- load from savedInstanceState
 	if savedInstanceState then
+print'continuing...'
 		if savedInstanceState:containsKey'fontSize' then
 			fontSize = savedInstanceState:getInt'fontSize'
 			refreshFontSize()
+print('fontSize', fontSize)
 		end
 
 		if savedInstanceState:containsKey'showID' then
 			showID = savedInstanceState:getInt'showID'
+print('showID', showID)
 		end
 		if savedInstanceState:containsKey'currentBookIndex' then
 			local currentBookIndex = savedInstanceState:getInt'currentBookIndex'
 			currentBook = books[currentBookIndex]
+print('currentBookIndex', currentBookIndex, currentBook)
 		end
 		if savedInstanceState:containsKey'currentChapterIndex' then
 			local currentChapterIndex = savedInstanceState:getInt'currentChapterIndex'
 			currentChapter = allChapters[currentChapterIndex]
+print('currentChapterIndex', currentChapterIndex, currentChapter)
 		end
 		showAndAddHistory{
 			showID = showID or showIDs.books,
