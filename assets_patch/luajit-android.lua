@@ -477,6 +477,21 @@ callbacks.onBackPressed = function(activity, ...)
 end
 --]]
 
+-- recapture new activity:
+
+local prevOnStart = callbacks.onStart
+callbacks.onStart = function(activity_, ...)
+	activity = activity_
+	return prevOnStart(activity, ...)
+end
+
+local prevOnResume = callbacks.onResume
+callbacks.onResume = function(activity_, ...)
+	activity = activity_
+	return prevOnResume(activity, ...)
+end
+
+
 return function(methodName, activity, ...)
 	return assert.index(callbacks, methodName)(activity, ...)
 end
