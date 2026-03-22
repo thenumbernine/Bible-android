@@ -1,4 +1,6 @@
 #!/usr/bin/env rua
+-- run from cwd
+
 --[[
 file locations and respective dimensions:
 
@@ -13,3 +15,24 @@ nogradle/res/mipmap-xxhdpi/ic_launcher_round.webp WEBP 144x144 144x144+0+0 8-bit
 nogradle/res/mipmap-xxxhdpi/ic_launcher.webp WEBP 192x192 192x192+0+0 8-bit sRGB 3844B 0.000u 0:00.000
 nogradle/res/mipmap-xxxhdpi/ic_launcher_round.webp WEBP 192x192 192x192+0+0 8-bit sRGB 7778B 0.000u 0:00.000
 --]]
+
+for _,info in ipairs{
+	{size='48x48', dir=path'LuaJIT/nogradle/res/mipmap-mdpi'},
+	{size='72x72', dir=path'LuaJIT/nogradle/res/mipmap-hdpi'},
+	{size='96x96', dir=path'LuaJIT/nogradle/res/mipmap-xhdpi'},
+	{size='144x144', dir=path'LuaJIT/nogradle/res/mipmap-xxhdpi'},
+	{size='192x192', dir=path'LuaJIT/nogradle/res/mipmap-xxxhdpi'},
+} do
+	os.exec(
+		'magick',
+		'bible.png',
+		'-resize', info.size,
+		info.dir/'ic_launcher.webp'
+	)
+	os.exec(
+		'magick',
+		'bible.png',
+		'-resize', info.size,
+		info.dir/'ic_launcher_round.webp'
+	)
+end

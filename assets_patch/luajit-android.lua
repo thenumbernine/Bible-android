@@ -5,7 +5,6 @@
 local assert = require 'ext.assert'
 local table = require 'ext.table'
 local string = require 'ext.string'
-local path = require 'ext.path'
 local ffi = require 'ffi'
 local J = require 'java'
 
