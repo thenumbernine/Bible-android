@@ -1,0 +1,15 @@
+#!/usr/bin/env rua
+--[[
+file locations and respective dimensions:
+
+nogradle/res/mipmap-mdpi/ic_launcher.webp WEBP 48x48 48x48+0+0 8-bit sRGB 982B 0.000u 0:00.000
+nogradle/res/mipmap-mdpi/ic_launcher_round.webp WEBP 48x48 48x48+0+0 8-bit sRGB 1772B 0.000u 0:00.000
+nogradle/res/mipmap-hdpi/ic_launcher.webp WEBP 72x72 72x72+0+0 8-bit sRGB 1404B 0.000u 0:00.000
+nogradle/res/mipmap-hdpi/ic_launcher_round.webp WEBP 72x72 72x72+0+0 8-bit sRGB 2898B 0.000u 0:00.000
+nogradle/res/mipmap-xhdpi/ic_launcher.webp WEBP 96x96 96x96+0+0 8-bit sRGB 1900B 0.000u 0:00.000
+nogradle/res/mipmap-xhdpi/ic_launcher_round.webp WEBP 96x96 96x96+0+0 8-bit sRGB 3918B 0.000u 0:00.000
+nogradle/res/mipmap-xxhdpi/ic_launcher.webp WEBP 144x144 144x144+0+0 8-bit sRGB 2884B 0.000u 0:00.000
+nogradle/res/mipmap-xxhdpi/ic_launcher_round.webp WEBP 144x144 144x144+0+0 8-bit sRGB 5914B 0.000u 0:00.000
+nogradle/res/mipmap-xxxhdpi/ic_launcher.webp WEBP 192x192 192x192+0+0 8-bit sRGB 3844B 0.000u 0:00.000
+nogradle/res/mipmap-xxxhdpi/ic_launcher_round.webp WEBP 192x192 192x192+0+0 8-bit sRGB 7778B 0.000u 0:00.000
+--]]

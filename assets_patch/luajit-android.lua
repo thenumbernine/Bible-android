@@ -54,6 +54,7 @@ end
 
 
 local BookListViewAdapter
+local activity
 local listView
 local readerView
 local textView
@@ -65,7 +66,7 @@ local allChapters = table()
 local currentBook
 local currentChapter
 
-local function showVerseList(activity)
+local function showVerseList()
 	-- assumes currentBook and currentChapter is set
 	local title = currentBook.name
 	if #currentBook.chapters > 1 then
@@ -86,7 +87,7 @@ local function showVerseList(activity)
 end
 
 local showLevel
-local function show(activity)
+local function show()
 	if showLevel == 1 then
 		activity:setTitle'Bible App'
 		listView:setAdapter(BookListViewAdapter())
@@ -98,11 +99,11 @@ local function show(activity)
 		activity:setContentView(listView)
 	elseif showLevel == 3 then
 		-- assumes currentBook and currentChapter is set
-		showVerseList(activity)
+		showVerseList()
 	end
 end
 
-local function showAbout(activity)
+local function showAbout()
 	activity:setTitle'About'
 	textView:setText[[
 Bible App
@@ -115,15 +116,47 @@ If you like this app, please consider supporting it.
 Donations are greatly appreciated.
 https://buymeacoffee.com/thenumbernine
 ]]
+	activity:setContentView(readerView)
 end
 
 local function refreshFontSize()
 	textView:setTextSize(J.android.util.TypedValue.COMPLEX_UNIT_SP, fontSize)
 end
 
+
+--[[
+what should be in here?
+1) display function (show() vs showAbout() etc)
+2) state (showLevel, currentBook, currentChapter)
+--]]
+
+--[[
+args:
+	show = how to show
+		vars:
+	showLevel
+	currentBook
+	currentChapter
+--]]
+local function showHistory(args)
+	showLevel = args.showLevel or showLevel
+	currentBook = args.currentBook or currentBook
+	currentChapter = args.currentChapter or currentChapter
+	args.show()
+end
+
+local backHistory = table()
+local function showAndAddHistory(args)
+	backHistory:insert(args)
+	showHistory(args)
+end
+
 local prevOnCreate = callbacks.onCreate
-callbacks.onCreate = function(activity, savedInstanceState, ...)
-	prevOnCreate(activity, savedInstances, ...)
+callbacks.onCreate = function(activity_, savedInstanceState, ...)
+	prevOnCreate(activity_, savedInstances, ...)
+	
+	-- save here
+	activity = activity_
 
 	local ViewGroup = J.android.view.ViewGroup
 
@@ -237,8 +270,10 @@ callbacks.onCreate = function(activity, savedInstanceState, ...)
 						button:setText(tostring(chapter.no))
 						button:setOnClickListener(View.OnClickListener(function()
 							currentChapter = chapter
-							showLevel = 3
-							show(activity)
+							showAndAddHistory{
+								showLevel = 3,
+								show = show,
+							}
 						end))
 						layout:addView(button)
 					end
@@ -291,12 +326,16 @@ callbacks.onCreate = function(activity, savedInstanceState, ...)
 					button:setOnClickListener(View.OnClickListener(function()
 						currentBook = book
 						if #book.chapters == 1 then
-							currentChapter = currentBook.chapters[1]
-							showLevel = 3	-- verse-list
-							show(activity)
+							showAndAddHistory{
+								currentChapter = currentBook.chapters[1],
+								showLevel = 3,	-- verse-list
+								show = show,
+							}
 						else
-							showLevel = 2	-- chapter-list
-							show(activity)
+							showAndAddHistory{
+								showLevel = 2,	-- chapter-list
+								show = show,
+							}
 						end
 					end))
 					layout:addView(button)
@@ -307,8 +346,10 @@ callbacks.onCreate = function(activity, savedInstanceState, ...)
 		},
 	}
 
-	showLevel = 1	-- 1 = books, 2 = chapters, 3 = content
-	show(activity)
+	showAndAddHistory{
+		showLevel = 1,	-- 1 = books, 2 = chapters, 3 = content
+		show = show,
+	}
 end
 
 local menuOpenBooks = getNextMenu()
@@ -329,23 +370,18 @@ callbacks.onCreateOptionsMenu = function(activity, menu, ...)
 		:setShowAsAction(J.android.view.MenuItem.SHOW_AS_ACTION_ALWAYS)
 	menu:add(0, menuChapterNext, 3, '>')
 		:setShowAsAction(J.android.view.MenuItem.SHOW_AS_ACTION_ALWAYS)
-	
+
+--[[ resize buttons ... might be easier to just use icons ...
 	for i=0,menu:size()-1 do
 		local item = menu:getItem(i)
 		local s = J.android.text.SpannableString(item:getTitle())
 		s:setSpan(J.android.text.style.RelativeSizeSpan(1.2), 0, s:length(), 0)
 		item:setTitle(s)
-	
-		--[[ hmm this is not lowering the left/right padding ...
-		local view = item:getActionView()
-		if view then
-			view:setPadding(0, 16, 0, 16)	-- left top right bottom
-		end
-		--]]
 	end
+--]]
 
 	menu:add(0, menuOpenBooks, 4, 'Books...')
-	menu:add(0, menuOpenAbout, 4, 'About...')
+	menu:add(0, menuOpenAbout, 5, 'About...')
 	return true
 end
 
@@ -359,10 +395,12 @@ callbacks.onOptionsItemSelected = function(activity, item, ...)
 		if i then	-- won't find if we're not viewing a chapter (mabye grey out or hide icons?)
 			local newChapter = allChapters[i+delta]
 			if newChapter then
-				currentChapter = newChapter
-				currentBook = currentChapter.book
-				showLevel = 3
-				show(activity)
+				showAndAddHistory{
+					currentChapter = newChapter,
+					currentBook = newChapter.book,
+					showLevel = 3,
+					show = show,
+				}
 			end
 		end
 	end
@@ -379,10 +417,14 @@ callbacks.onOptionsItemSelected = function(activity, item, ...)
 		refreshFontSize()
 	elseif itemID == menuOpenBooks then
 		-- TODO insert into a history table and then let back go back one history unit
-		showLevel = 1
-		show(activity)
+		showAndAddHistory{
+			showLevel = 1,
+			show = show,
+		}
 	elseif itemID == menuOpenAbout then
-		showAbout(activity)
+		showAndAddHistory{
+			show = showAbout,
+		}
 	end
 	return prevOnOptionsItemSelected(activity, item, ...)
 end
@@ -392,12 +434,11 @@ end
 -- and I can't do that because everything is script-driven at runtime
 local prevOnBackPressed = callbacks.onBackPressed
 callbacks.onBackPressed = function(activity, ...)
-	if showLevel == 1 then
-		prevOnBackPressed(activity, ...)
-	else
-		showLevel = showLevel - 1
-		show(activity)
+	if #backHistory <= 1 then
+		return prevOnBackPressed(activity, ...)
 	end
+	backHistory:remove()
+	showHistory(backHistory:last())
 end
 --]]
 
