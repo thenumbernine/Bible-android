@@ -428,6 +428,11 @@ callbacks.onCreate = function(activity, savedInstanceState, ...)
 
 	-- load from savedInstanceState
 	if savedInstanceState then
+		if savedInstanceState:containsKey'fontSize' then
+			fontSize = savedInstanceState:getInt'fontSize'
+			refreshFontSize()
+		end
+
 		if savedInstanceState:containsKey'showID' then
 			showID = savedInstanceState:getInt'showID'
 		end
@@ -444,12 +449,6 @@ callbacks.onCreate = function(activity, savedInstanceState, ...)
 			currentBook = currentBook,
 			currentChapter = currentChapter,
 		}
-
-		if savedInstanceState:containsKey'fontSize' then
-			fontSize = savedInstanceState:getInt'fontSize'
-			refreshFontSize()
-		end
-
 	else
 		-- init default state
 		showAndAddHistory{
