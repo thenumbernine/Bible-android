@@ -1,0 +1,4 @@
+-- used with the rename.rua script to one-time rename the Android app from io.github.thenumbernine.LuaJIT to whatever you want.
+package = 'io.github.thenumbernine.Bible'
+appname = 'Bible App'
+-- TODO archive name as well.  meh for now.
