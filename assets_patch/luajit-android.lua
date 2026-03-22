@@ -61,12 +61,12 @@ local fontSize = 20
 
 local books = table()
 local booksForName = {}
+local allChapters = table()
 local currentBook
 local currentChapter
 
 local function showVerseList(activity)
 	-- assumes currentBook and currentChapter is set
-
 	local title = currentBook.name
 	if #currentBook.chapters > 1 then
 		title = title .. ' '..tostring(currentChapter.no)
@@ -88,16 +88,35 @@ end
 local showLevel
 local function show(activity)
 	if showLevel == 1 then
+		activity:setTitle'Bible App'
 		listView:setAdapter(BookListViewAdapter())
 		activity:setContentView(listView)
 	elseif showLevel == 2 then
+		-- assumes currentBook is set
+		activity:setTitle(currentBook.name)
 		listView:setAdapter(ChapterListViewAdapter())
 		activity:setContentView(listView)
 	elseif showLevel == 3 then
+		-- assumes currentBook and currentChapter is set
 		showVerseList(activity)
 	end
 end
-	
+
+local function showAbout(activity)
+	activity:setTitle'About'
+	textView:setText[[
+Bible App
+
+Copyright (c) 2026 Christopher E. Moore
+
+https://github.com/thenumbernine/Bible-android
+
+If you like this app, please consider supporting it.
+Donations are greatly appreciated.
+https://buymeacoffee.com/thenumbernine
+]]
+end
+
 local function refreshFontSize()
 	textView:setTextSize(J.android.util.TypedValue.COMPLEX_UNIT_SP, fontSize)
 end
@@ -155,7 +174,9 @@ callbacks.onCreate = function(activity, savedInstanceState, ...)
 				no = chapterno,
 				lines = table(),
 				menuID = getNextMenu(),
+				book = book,
 			}
+			allChapters:insert(chapter)
 			book.chaptersForNo[chapterno] = chapter
 			book.chapters:insert(chapter)
 		end
@@ -291,17 +312,40 @@ callbacks.onCreate = function(activity, savedInstanceState, ...)
 end
 
 local menuOpenBooks = getNextMenu()
+local menuChapterPrev = getNextMenu()
 local menuFontPlus = getNextMenu()
 local menuFontMinus = getNextMenu()
+local menuChapterNext = getNextMenu()
+local menuOpenAbout = getNextMenu()
 
 local prevOnCreateOptionsMenu = callbacks.onCreateOptionsMenu
 callbacks.onCreateOptionsMenu = function(activity, menu, ...)
 	prevOnCreateOptionsMenu(activity, menu, ...)
-	menu:add(0, menuFontPlus, 0, '+')
+	menu:add(0, menuChapterPrev, 0, '<')
 		:setShowAsAction(J.android.view.MenuItem.SHOW_AS_ACTION_ALWAYS)
-	menu:add(0, menuFontMinus, 1, '-')
+	menu:add(0, menuFontPlus, 1, '+')
 		:setShowAsAction(J.android.view.MenuItem.SHOW_AS_ACTION_ALWAYS)
-	menu:add(0, menuOpenBooks, 2, 'Books...')
+	menu:add(0, menuFontMinus, 2, '-')
+		:setShowAsAction(J.android.view.MenuItem.SHOW_AS_ACTION_ALWAYS)
+	menu:add(0, menuChapterNext, 3, '>')
+		:setShowAsAction(J.android.view.MenuItem.SHOW_AS_ACTION_ALWAYS)
+	
+	for i=0,menu:size()-1 do
+		local item = menu:getItem(i)
+		local s = J.android.text.SpannableString(item:getTitle())
+		s:setSpan(J.android.text.style.RelativeSizeSpan(1.2), 0, s:length(), 0)
+		item:setTitle(s)
+	
+		--[[ hmm this is not lowering the left/right padding ...
+		local view = item:getActionView()
+		if view then
+			view:setPadding(0, 16, 0, 16)	-- left top right bottom
+		end
+		--]]
+	end
+
+	menu:add(0, menuOpenBooks, 4, 'Books...')
+	menu:add(0, menuOpenAbout, 4, 'About...')
 	return true
 end
 
@@ -309,15 +353,36 @@ end
 local prevOnOptionsItemSelected = callbacks.onOptionsItemSelected
 callbacks.onOptionsItemSelected = function(activity, item, ...)
 	local itemID = item:getItemId()
-	if itemID == menuFontPlus then
+	
+	local function changeChapter(delta)
+		local i = allChapters:find(currentChapter)
+		if i then	-- won't find if we're not viewing a chapter (mabye grey out or hide icons?)
+			local newChapter = allChapters[i+delta]
+			if newChapter then
+				currentChapter = newChapter
+				currentBook = currentChapter.book
+				showLevel = 3
+				show(activity)
+			end
+		end
+	end
+
+	if itemID == menuChapterPrev then
+		changeChapter(-1)
+	elseif itemID == menuChapterNext then
+		changeChapter(1)
+	elseif itemID == menuFontPlus then
 		fontSize = fontSize + 2	-- upper bound?  exponential curve?
 		refreshFontSize()
 	elseif itemID == menuFontMinus then
 		fontSize = math.max(4, fontSize - 2)
 		refreshFontSize()
 	elseif itemID == menuOpenBooks then
+		-- TODO insert into a history table and then let back go back one history unit
 		showLevel = 1
 		show(activity)
+	elseif itemID == menuOpenAbout then
+		showAbout(activity)
 	end
 	return prevOnOptionsItemSelected(activity, item, ...)
 end
