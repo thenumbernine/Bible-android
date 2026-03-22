@@ -78,15 +78,14 @@ local function showVerseList()
 	activity:setTitle(title)
 
 	activity:setContentView(readerView)	-- has to go before setText
-	readerTextView:setText(
-		currentChapter.lines:mapi(function(line)
-			if line.verseno then
-				return line.verseno..': '..line.text
-			else
-				return line.text
-			end
-		end):concat'\n'
-	)
+	local text = currentChapter.lines:mapi(function(line)
+		if line.verseno then
+			return line.verseno..'. '..line.text
+		else
+			return line.text
+		end
+	end):concat'\n'
+	readerTextView:setText(text)
 end
 
 local function showAbout()
@@ -155,9 +154,9 @@ local function showHistory(args)
 	show()
 end
 
-local backHistory = table()
+local history = table()
 local function showAndAddHistory(args)
-	backHistory:insert(args)
+	history:insert(args)
 	showHistory(args)
 end
 
@@ -429,38 +428,40 @@ callbacks.onCreate = function(activity, savedInstanceState, ...)
 
 	-- load from savedInstanceState
 	if savedInstanceState then
-print'continuing...'
-		if savedInstanceState:containsKey'fontSize' then
-			fontSize = savedInstanceState:getInt'fontSize'
-			refreshFontSize()
-print('fontSize', fontSize)
-		end
-
 		if savedInstanceState:containsKey'showID' then
 			showID = savedInstanceState:getInt'showID'
-print('showID', showID)
 		end
 		if savedInstanceState:containsKey'currentBookIndex' then
 			local currentBookIndex = savedInstanceState:getInt'currentBookIndex'
 			currentBook = books[currentBookIndex]
-print('currentBookIndex', currentBookIndex, currentBook)
 		end
 		if savedInstanceState:containsKey'currentChapterIndex' then
 			local currentChapterIndex = savedInstanceState:getInt'currentChapterIndex'
 			currentChapter = allChapters[currentChapterIndex]
-print('currentChapterIndex', currentChapterIndex, currentChapter)
 		end
 		showAndAddHistory{
 			showID = showID or showIDs.books,
 			currentBook = currentBook,
 			currentChapter = currentChapter,
 		}
+
+		if savedInstanceState:containsKey'fontSize' then
+			fontSize = savedInstanceState:getInt'fontSize'
+			refreshFontSize()
+		end
+
 	else
 		-- init default state
 		showAndAddHistory{
 			showID = showIDs.books,
 		}
 	end
+
+	-- Without this, in dark theme, the initial readerTextView will show black text on black background.
+	-- because Google does not hire the best and brightest.
+	readerTextView:post(J.Runnable(function()
+		showHistory(history:last())
+	end))
 end
 
 local prevOnSaveInstanceState = callbacks.onSaveInstanceState
@@ -517,11 +518,11 @@ end
 -- and I can't do that because everything is script-driven at runtime
 local prevOnBackPressed = callbacks.onBackPressed
 callbacks.onBackPressed = function(activity, ...)
-	if #backHistory <= 1 then
+	if #history <= 1 then
 		return prevOnBackPressed(activity, ...)
 	end
-	backHistory:remove()
-	showHistory(backHistory:last())
+	history:remove()
+	showHistory(history:last())
 end
 --]]
 
