@@ -3,12 +3,9 @@
 
 This will be built off of my [LuaJIT-Android](https://github.com/thenumbernine/LuaJIT-android) repo.
 
-I'm still not sure how I want to use that repo in the future.
-Should LuaJIT be the parent and this repo forked off of it?
-Should LuaJIT be a submodule of this repo?
-Should LuaJIT be a separate project that is permuted and packaged via my [lua-dist](https://github.com/thenumbernine/lua-dist) project?
+# But Why?
 
-Currently it is set up as a submodule.  I do hate submodules though, because to hold N repos with submodules that all are interdependent of each other, you end up with O(N^2) copies of everything.  So expect this to change.
+I got tired of bloat and spam and popups asking me to rate apps 5 stars and everything other than a Bible app, so I made this to be absolutely nothing more than a Bible app.
 
 # How To Build?
 
@@ -26,3 +23,12 @@ copyAssets(
 3) `./make.rua install` ... yes from the LuaJIT folder
 
 How to in GNU Make?  I'm working on that...
+
+# Repo Design
+
+I'm still not sure how I want to use that repo in the future.
+Should LuaJIT be the parent and this repo forked off of it?
+Should LuaJIT be a submodule of this repo?
+Should LuaJIT be a separate project that is permuted and packaged via my [lua-dist](https://github.com/thenumbernine/lua-dist) project?
+
+Currently it is set up as a submodule.  I do hate submodules though, because to hold N repos with submodules that all are interdependent of each other, you end up with O(N^2) copies of everything.  So expect this to change.

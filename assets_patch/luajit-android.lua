@@ -17,6 +17,7 @@ local Button = J.android.widget.Button
 local TypedValue = J.android.util.TypedValue
 
 
+local activity
 local callbacks = {}
 
 -- maybe I should by default make all handlers that call through to super ...
@@ -57,7 +58,6 @@ end
 
 
 local BookListViewAdapter
-local activity
 local listView
 local readerView
 local textView
@@ -89,23 +89,6 @@ local function showVerseList()
 	activity:setContentView(readerView)
 end
 
-local showLevel
-local function show()
-	if showLevel == 1 then
-		activity:setTitle'Bible App'
-		listView:setAdapter(BookListViewAdapter())
-		activity:setContentView(listView)
-	elseif showLevel == 2 then
-		-- assumes currentBook is set
-		activity:setTitle(currentBook.name)
-		listView:setAdapter(ChapterListViewAdapter())
-		activity:setContentView(listView)
-	elseif showLevel == 3 then
-		-- assumes currentBook and currentChapter is set
-		showVerseList()
-	end
-end
-
 local function showAbout()
 	activity:setTitle'About'
 	textView:setText[[
@@ -122,6 +105,32 @@ https://buymeacoffee.com/thenumbernine
 	activity:setContentView(readerView)
 end
 
+local showIDs = table{
+	'books',
+	'chapters',
+	'verses',
+	'about',	-- tempting to merge with Preface ...
+}:mapi(function(v,k) return k, v end):setmetatable(nil)
+
+local showID = showIDs.books
+local function show()
+	if showID == showIDs.books then
+		activity:setTitle'Bible App'
+		listView:setAdapter(BookListViewAdapter())
+		activity:setContentView(listView)
+	elseif showID == showIDs.chapters then
+		-- assumes currentBook is set
+		activity:setTitle(currentBook.name)
+		listView:setAdapter(ChapterListViewAdapter())
+		activity:setContentView(listView)
+	elseif showID == showIDs.verses then
+		-- assumes currentBook and currentChapter is set
+		showVerseList()
+	elseif showID == showIDs.about then
+		showAbout()
+	end
+end
+
 local function refreshFontSize()
 	textView:setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSize)
 end
@@ -130,22 +139,20 @@ end
 --[[
 what should be in here?
 1) display function (show() vs showAbout() etc)
-2) state (showLevel, currentBook, currentChapter)
+2) state (showID, currentBook, currentChapter)
 --]]
 
 --[[
 args:
-	show = how to show
-		vars:
-	showLevel
+	showID = what to show (in showIDs)
 	currentBook
 	currentChapter
 --]]
 local function showHistory(args)
-	showLevel = args.showLevel or showLevel
+	showID = args.showID or showID
 	currentBook = args.currentBook or currentBook
 	currentChapter = args.currentChapter or currentChapter
-	args.show()
+	show()
 end
 
 local backHistory = table()
@@ -155,11 +162,8 @@ local function showAndAddHistory(args)
 end
 
 local prevOnCreate = callbacks.onCreate
-callbacks.onCreate = function(activity_, savedInstanceState, ...)
-	prevOnCreate(activity_, savedInstances, ...)
-	
-	-- save here
-	activity = activity_
+callbacks.onCreate = function(activity, savedInstanceState, ...)
+	prevOnCreate(activity, savedInstances, ...)
 
 	local RelativeLayout = J.android.widget.RelativeLayout
 	readerView = RelativeLayout(activity)
@@ -188,8 +192,7 @@ callbacks.onCreate = function(activity_, savedInstanceState, ...)
 					showAndAddHistory{
 						currentChapter = newChapter,
 						currentBook = newChapter.book,
-						showLevel = 3,
-						show = show,
+						showID = showIDs.verses,
 					}
 				end
 			end
@@ -225,7 +228,7 @@ callbacks.onCreate = function(activity_, savedInstanceState, ...)
 			refreshFontSize()
 		end))
 		bottomMenu:addView(buttonFontPlus)
-		
+
 		local buttonNext = Button(activity)
 		buttonNext:setText'>'
 		buttonNext:setTextSize(TypedValue.COMPLEX_UNIT_SP, uiFontSize)
@@ -238,7 +241,7 @@ callbacks.onCreate = function(activity_, savedInstanceState, ...)
 
 	local textScrollView = J.android.widget.ScrollView(activity)
 	local params = RelativeLayout.LayoutParams(
-		ViewGroup.LayoutParams.MATCH_PARENT, 
+		ViewGroup.LayoutParams.MATCH_PARENT,
 		ViewGroup.LayoutParams.MATCH_PARENT
 	)
 	params:addRule(RelativeLayout.ALIGN_PARENT_TOP)
@@ -258,7 +261,7 @@ callbacks.onCreate = function(activity_, savedInstanceState, ...)
 	end
 
 	-- has to be added last? or order doesn't matter because the ALIGN_PARENT_TOP rule?
-	readerView:addView(bottomMenu) 
+	readerView:addView(bottomMenu)
 
 
 	-- make our view for when we list books or chapters
@@ -356,8 +359,7 @@ callbacks.onCreate = function(activity_, savedInstanceState, ...)
 							showAndAddHistory{
 								currentChapter = chapter,
 								currentBook = chapter.book,
-								showLevel = 3,
-								show = show,
+								showID = showIDs.verses,
 							}
 						end))
 						layout:addView(button)
@@ -410,14 +412,12 @@ callbacks.onCreate = function(activity_, savedInstanceState, ...)
 							showAndAddHistory{
 								currentBook = currentBook,
 								currentChapter = currentBook.chapters[1],
-								showLevel = 3,	-- verse-list
-								show = show,
+								showID = showIDs.verses,
 							}
 						else
 							showAndAddHistory{
 								currentBook = currentBook,
-								showLevel = 2,	-- chapter-list
-								show = show,
+								showID = showIDs.chapters,
 							}
 						end
 					end))
@@ -429,10 +429,56 @@ callbacks.onCreate = function(activity_, savedInstanceState, ...)
 		},
 	}
 
-	showAndAddHistory{
-		showLevel = 1,	-- 1 = books, 2 = chapters, 3 = content
-		show = show,
-	}
+	-- load from savedInstanceState
+	if savedInstanceState then
+		if savedInstanceState:containsKey'fontSize' then
+			fontSize = savedInstanceState:getInt'fontSize'
+			refreshFontSize()
+		end
+
+		if savedInstanceState:containsKey'showID' then
+			showID = savedInstanceState:getInt'showID'
+		end
+		if savedInstanceState:containsKey'currentBookIndex' then
+			local currentBookIndex = savedInstanceState:getInt'currentBookIndex'
+			currentBook = books[currentBookIndex]
+		end
+		if savedInstanceState:containsKey'currentChapterIndex' then
+			local currentChapterIndex = savedInstanceState:getInt'currentChapterIndex'
+			currentChapter = allChapters[currentChapterIndex]
+		end
+		showAndAddHistory{
+			showID = showID or showIDs.books,
+			currentBook = currentBook,
+			currentChapter = currentChapter,
+		}
+	else
+		-- init default state
+		showAndAddHistory{
+			showID = showIDs.books,
+		}
+	end
+end
+
+local prevOnSaveInstanceState = callbacks.onSaveInstanceState
+callbacks.onSaveInstanceState = function(activity, outState, ...)
+	-- ... is empty unless persistableMode == persistAcrossReboots
+
+	outState:putInt('fontSize', fontSize)
+
+	outState:putInt('showID', showID)
+
+	local currentBookIndex = books:find(currentBook)
+	if currentBookIndex then
+		outState:putInt('currentBookIndex', currentBookIndex)
+	end
+
+	local currentChapterIndex = allChapters:find(currentChapter)
+	if currentChapterIndex then
+		outState:putInt('currentChapterIndex', currentChapterIndex)
+	end
+
+	return prevOnSaveInstanceState(outState)
 end
 
 local menuOpenBooks = getNextMenu()
@@ -453,12 +499,11 @@ callbacks.onOptionsItemSelected = function(activity, item, ...)
 	if itemID == menuOpenBooks then
 		-- TODO insert into a history table and then let back go back one history unit
 		showAndAddHistory{
-			showLevel = 1,
-			show = show,
+			showID = showIDs.books,
 		}
 	elseif itemID == menuOpenAbout then
 		showAndAddHistory{
-			show = showAbout,
+			showID = showIDs.about,
 		}
 	end
 	return prevOnOptionsItemSelected(activity, item, ...)
@@ -480,18 +525,17 @@ end
 -- recapture new activity:
 
 local prevOnStart = callbacks.onStart
-callbacks.onStart = function(activity_, ...)
-	activity = activity_
+callbacks.onStart = function(activity, ...)
 	return prevOnStart(activity, ...)
 end
 
 local prevOnResume = callbacks.onResume
-callbacks.onResume = function(activity_, ...)
-	activity = activity_
+callbacks.onResume = function(activity, ...)
 	return prevOnResume(activity, ...)
 end
 
 
-return function(methodName, activity, ...)
-	return assert.index(callbacks, methodName)(activity, ...)
+return function(methodName, activity_, ...)
+	activity = activity_	-- save here
+	return assert.index(callbacks, methodName)(activity_, ...)
 end
