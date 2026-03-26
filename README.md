@@ -10,17 +10,8 @@ I got tired of bloat and spam and popups asking me to rate apps 5 stars and ever
 # How To Build?
 
 1) `git submodule update --init --recursive`
-2) `cd LuaJIT && ./rename.rua` ... renames the LuaJIT repo to this repo
-
-2.5) I still have this one line I need to wedge in for new LuaJIT projects:
-
-```
-copyAssets(
-	path'../assets_patch',
-	path'app/src/main/assets')
-```
-
-3) `./make.rua install` ... yes from the LuaJIT folder
+2) `cd LuaJIT && ./rename.rua && ./icon.rua ../icon.png` ... renames the LuaJIT repo to this repo and updates the icon.
+3) `./make.rua install` from Bible project root folder.
 
 How to in GNU Make?  I'm working on that...
 
